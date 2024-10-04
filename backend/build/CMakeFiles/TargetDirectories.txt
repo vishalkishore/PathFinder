@@ -1,0 +1,3 @@
+/home/svunix/WebDevProjects/ShortestPathFinder/backend/build/CMakeFiles/spt_server.dir
+/home/svunix/WebDevProjects/ShortestPathFinder/backend/build/CMakeFiles/edit_cache.dir
+/home/svunix/WebDevProjects/ShortestPathFinder/backend/build/CMakeFiles/rebuild_cache.dir

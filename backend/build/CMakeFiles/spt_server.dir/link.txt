@@ -1,0 +1,1 @@
+/usr/bin/c++  -Wall -Wextra CMakeFiles/spt_server.dir/main.cpp.o -o spt_server  /usr/lib/x86_64-linux-gnu/libcpprest.so.2.10 /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/x86_64-linux-gnu/libcrypto.so -ldl -lcrypto 
