@@ -25,9 +25,14 @@
       }
       .inputarea{
         width: 50%;
-        height: 60%;
+        height: 100%;
         padding-right: 50px;
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+      }
+      .textnbtn{
+        height: 60%;
         display: flex;
         flex-direction: column;
       }
@@ -56,16 +61,26 @@
         display: flex;
         gap: 10px;
       }
+      #result{
+        flex-grow: 1;
+        color: antiquewhite;
+        font-size: 1.1rem;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="inputarea">
-        <textarea id="myTextArea" rows="5" cols="40" placeholder="Enter your text here..."></textarea>
-        <br>
-        <div class="btncontainer">
-          <button type="submit" id="submitBtn1">Submit</button>
-          <button type="submit" id="submitBtn2" onclick="generateRandom()">Generate Random Graph</button>
+        <div class="textnbtn">
+          <textarea id="myTextArea" rows="5" cols="40" placeholder="Enter your text here..."></textarea>
+          <br>
+          <div class="btncontainer">
+            <button type="submit" id="submitBtn1">Submit</button>
+            <button type="submit" id="submitBtn2" onclick="generateRandom()">Generate Random Graph</button>
+          </div>
+          <br>
+        </div>
+        <div id="result">
         </div>
       </div>
       <svg width="600" height="600"></svg>

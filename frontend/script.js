@@ -6,6 +6,32 @@ let adjMatrix = [
   [0, 4, 1, 0]
 ];
 
+document.getElementById('submitBtn1').addEventListener('click', function() {
+  const text = document.getElementById('myTextArea').value;
+  try {
+    const matrix = JSON.parse(text);
+    if (!Array.isArray(matrix) || matrix.length === 0 || !matrix.every(Array.isArray)) {
+      throw new Error("Input is not a valid 2D array.");
+    }
+    const numRows = matrix.length;
+    if (!matrix.every(row => row.length === numRows)) {
+      throw new Error("Matrix is not square.");
+    }
+    for (let i = 0; i < numRows; i++) {
+      for (let j = 0; j < numRows; j++) {
+        if (matrix[i][j] !== matrix[j][i]) {
+          throw new Error("Matrix is not symmetric, hence not an undirected graph.");
+        }
+      }
+    }
+    console.log(matrix);
+    alert("The input represents a valid adjacency matrix for an undirected graph.");
+    generateGraphFromMatrix(matrix);
+  } catch (error) {
+    alert("Error: " + error.message);
+  }
+});
+
 function generateRandomAdjacencyMatrix(a, b) {
   const numNodes = Math.floor(Math.random() * (b - a + 1)) + a;
   const adjMatrix = Array.from({ length: numNodes }, () => Array(numNodes).fill(0));
@@ -119,8 +145,15 @@ function drawGraph(svg, adjMatrix) {
       .attr("y", d => d.y);
   });
 }
-async function generateRandom() {
+
+function generateRandom() {
   adjMatrix = generateRandomAdjacencyMatrix(10, 10);
+  const formattedString = '[\n' + adjMatrix.map(row => '  [' + row.join(', ') + ']').join(',\n') + '\n]';
+  document.getElementById('myTextArea').value = formattedString;
+  generateGraphFromMatrix(adjMatrix);
+}
+
+async function generateGraphFromMatrix(adjMatrix) {
   drawGraph(svg, adjMatrix);
   const result = await fetchResult(adjMatrix);
   /* const links2 = [];
@@ -140,7 +173,16 @@ async function generateRandom() {
   const edgesArray = result.iterations.map((element) => ({
     edges: getEdge(element.current_node, element.neighbors.map((value, index) => value === 1 ? index : -1)
       .filter(index => index !== -1)),
-    source: element.current_node
+    source: element.current_node,
+    distances: (function(element) {
+      let formattedString = 'Distance of nodes:\n\n';
+      console.log("updated_distances", element);
+      element.forEach((distance, index) => {
+        const formattedDistance = distance === 2147483647 ? 'infinity' : distance;
+        formattedString += `  Node ${index} : ${formattedDistance}\n`;
+      });
+      return formattedString;
+    })(element.updated_distances)
   }));
   console.log(adjMatrix);
   console.log(edgesArray);
@@ -206,10 +248,19 @@ function drag(simulation) {
 
 function animateEdgesSequentially(edges, index = 0) {
   if (index === edges.length) return;
-  animateEdge(edges[index].edges, () => {
-    console.log(`Animation of edge ${index + 1} has completed`);
-    animateEdgesSequentially(edges, index + 1);
-  })
+  const current_node = d3.selectAll('circle')._groups[0][edges[index].source];
+  current_node.setAttribute("stroke", "red");
+  current_node.setAttribute("stroke-width", "5");
+  console.log("source", edges[index].source);
+  setTimeout(() => {
+    animateEdge(edges[index].edges, () => {
+      console.log(`Animation of edge ${index + 1} has completed`);
+      document.getElementById("result").innerText = edges[index].distances;
+      current_node.removeAttribute("stroke");
+      current_node.removeAttribute("stroke-width");
+      animateEdgesSequentially(edges, index + 1);
+    })
+  }, 500)
 }
 
 // Function to animate a specific link
