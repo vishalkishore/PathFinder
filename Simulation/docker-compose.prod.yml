@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "9080:9080"
+    environment:
+      - ENV=production
+    command: ./server
