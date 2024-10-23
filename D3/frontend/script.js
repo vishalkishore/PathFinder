@@ -193,7 +193,7 @@ generateRandom();
 
 
 async function fetchResult(adjacencyMatrix) {
-  const response = await fetch('http://localhost:8080', {
+  const response = await fetch('http://localhost:9080/api/dijkstra', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

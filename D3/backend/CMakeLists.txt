@@ -1,36 +1,22 @@
-# cmake_minimum_required(VERSION 3.10)
-# project(array_sorter)
-
-# set(CMAKE_CXX_STANDARD 14)
-
-# find_package(cpprestsdk REQUIRED)
-
-# add_executable(array_sorter main.cpp)
-# target_link_libraries(array_sorter PRIVATE cpprestsdk::cpprest)
-
 cmake_minimum_required(VERSION 3.10)
-project(spt_server)
+project(PistacheApp CXX)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(cpprestsdk REQUIRED)
-find_package(OpenSSL REQUIRED)
-
-add_executable(spt_server main.cpp)
-target_link_libraries(spt_server 
-    PRIVATE 
-    cpprestsdk::cpprest
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    ${CMAKE_DL_LIBS}
+include(FetchContent)
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.10.5  # You can specify the version you need
 )
+FetchContent_MakeAvailable(json)
 
-# Explicitly link against libcrypto
-target_link_libraries(spt_server PRIVATE -lcrypto)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(Pistache REQUIRED IMPORTED_TARGET libpistache)
 
-# Add compiler flags to show all warnings
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+# Automatically include all .cpp files in the src directory
+file(GLOB SOURCES "src/*.cpp")
 
-# Print the link libraries for debugging
-get_target_property(LINK_LIBRARIES spt_server LINK_LIBRARIES)
-message(STATUS "Link libraries: ${LINK_LIBRARIES}")
+add_executable(server src/main.cpp)
+target_link_libraries(server PkgConfig::Pistache pthread nlohmann_json::nlohmann_json)
