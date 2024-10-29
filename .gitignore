@@ -31,6 +31,8 @@
 *.out
 *.app
 
+node_modules
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
