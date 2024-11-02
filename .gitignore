@@ -33,6 +33,8 @@
 
 node_modules
 
+build
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -44,5 +46,11 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
+# Ignore editor and IDE files
+.vscode/
+.idea/
+*.swp
+*~
 
 # End of https://mrkandreev.name/snippets/gitignore-generator/#C++,CMake

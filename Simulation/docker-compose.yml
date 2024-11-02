@@ -1,15 +1,31 @@
-version: '3.8'
 services:
-  app:
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
     volumes:
       - ./backend:/app
-      - build_volume:/app/build
+      - backend_build:/app/build
+    environment:
+      - PORT=8080
+    # No need for command override since it's in the dev script
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "9080:9080"
-    command: sh -c "mkdir -p /app/build && cd /app/build && cmake .. && make && ./server"
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    command: npm run dev
+    depends_on:
+      - backend
 
 volumes:
-  build_volume:
+  backend_build:
