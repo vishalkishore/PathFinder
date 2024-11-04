@@ -27,6 +27,7 @@ export default function Map() {
   const [viewState, setViewState] = useState(INITIAL_LOCATION);
   const [startNode, setStartNode] = useState(null);
   const [endNode, setEndNode] = useState(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
   const [selectionRadius, setSelectionRadius] = useState([]);
   const [loading, setLoading] = useState(false);
   const [drivers, setDrivers] = useState([]);
@@ -47,6 +48,7 @@ export default function Map() {
 
   async function mapClick(e, info, radius = null) {
     setFadeRadiusReverse(false);
+    clearPath();
     fadeRadius.current = true;
 
     if (info.rightButton) {
@@ -66,17 +68,32 @@ export default function Map() {
 
       const node = await getNearestNode(e.coordinate[1], e.coordinate[0]);
       if (!node) {
-        alert("No path was found in the vicinity, please try another location.");
+        alert(
+          "No path was found in the vicinity, please try another location.",
+        );
         clearTimeout(loadingHandle);
         setLoading(false);
         return;
       }
       setEndNode(node);
 
-      if (boundingBox) {
-        const response = await fetchOverpassData(boundingBox, false);
-        const data = await response.json();
-        console.log(data);
+      if (boundingBox && startNode && node) {
+        let data = JSON.stringify({
+          "start-node": startNode,
+          "end-node": node,
+          "bounding-box": boundingBox,
+        });
+        // Send POST request with bounding box data
+        fetch("http://localhost:8080/direct-path", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: data,
+        })
+          .then((response) => response.json())
+          .then((data) => console.log("Success:", data))
+          .catch((error) => console.error("Error:", error));
       }
 
       clearTimeout(loadingHandle);
@@ -96,10 +113,11 @@ export default function Map() {
       setLoading(false);
       return;
     }
-    
+
     setDrivers([]);
     const newDrivers = await spawnDrivers(node.lat, node.lon, { count: 8 });
-    setDrivers(prev => [...prev, ...newDrivers]);
+    console.log("Drivers spawned:", newDrivers);
+    setDrivers((prev) => [...prev, ...newDrivers]);
 
     setStartNode(node);
     setEndNode(null);
@@ -108,8 +126,10 @@ export default function Map() {
       [node.lon, node.lat],
       radius || INITIAL_RADIUS,
     );
+
     setSelectionRadius([{ contour: circle }]);
     setBoundingBox(getBoundingBoxFromPolygon(circle));
+
     clearTimeout(loadingHandle);
     setLoading(false);
   }
@@ -144,6 +164,11 @@ export default function Map() {
       console.error("Geolocation is not supported by this browser.");
     }
   }, []);
+
+  function clearPath() {
+    setEndNode(null);
+    setDrivers([]);
+  }
 
   // Generate layers array including drivers when available
   const layers = [
@@ -208,6 +233,14 @@ export default function Map() {
               onHover: (info) => {
                 setHoveredDriver(info.object || null);
               },
+              getAngle: (d) => {
+                const angle = Number(d.angle) || 0;
+                return -1 * (angle + 90);
+              },
+              transitions: {
+                getPosition: 120,
+                getAngle: 120,
+              },
             },
           }),
         ]
@@ -239,19 +272,22 @@ export default function Map() {
         {hoveredDriver && (
           <div
             style={{
-              position: 'absolute',
+              position: "absolute",
               zIndex: 1,
-              pointerEvents: 'none',
+              pointerEvents: "none",
               left: hoveredDriver.x + 10,
               top: hoveredDriver.y + 10,
-              backgroundColor: 'white',
-              padding: '8px',
-              borderRadius: '4px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              backgroundColor: "white",
+              padding: "8px",
+              borderRadius: "4px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
             }}
           >
-            <p>Driver ID: {hoveredDriver.id || 'N/A'}</p>
-            <p>Location: {hoveredDriver.coordinates?.map(c => c.toFixed(4)).join(', ')}</p>
+            <p>Driver ID: {hoveredDriver.id || "N/A"}</p>
+            <p>
+              Location:{" "}
+              {hoveredDriver.coordinates?.map((c) => c.toFixed(4)).join(", ")}
+            </p>
           </div>
         )}
       </div>

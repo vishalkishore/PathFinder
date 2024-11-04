@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-function useSmoothStateChange(initialState, fromValue, toValue, duration, trigger, reverse) {
+function useSmoothStateChange(
+  initialState,
+  fromValue,
+  toValue,
+  duration,
+  trigger,
+  reverse,
+) {
   const [state, setState] = useState(initialState);
   const startTime = Date.now();
   const animationFrameRef = useRef();
@@ -12,7 +19,9 @@ function useSmoothStateChange(initialState, fromValue, toValue, duration, trigge
 
       if (elapsedTime < duration) {
         const progress = elapsedTime / duration;
-        const newValue = reverse ? toValue + progress * (fromValue - toValue) : fromValue + progress * (toValue - fromValue);
+        const newValue = reverse
+          ? toValue + progress * (fromValue - toValue)
+          : fromValue + progress * (toValue - fromValue);
 
         setState(newValue);
 

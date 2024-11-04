@@ -1,8 +1,8 @@
 import { IconLayer } from "@deck.gl/layers";
-import carIcon from '../assets/car.png';
+import carIcon from "../assets/car.png";
 
 const ICON_MAPPING = {
-  marker: {x: 0, y: 0, width: 128, height: 59}
+  marker: { x: 0, y: 0, width: 128, height: 59 },
 };
 
 /**
@@ -21,19 +21,18 @@ export function createDriverLayer({ drivers = [], colors = {}, options = {} }) {
     angle: driver.bearing || 0, // Default to 0 if bearing not provided
     color: colors.driverNodeFill || [0, 150, 255],
   }));
-
+  console.log("Driver layer", driverPoints);
   return new IconLayer({
-    id: 'driver-icons',
+    id: "driver-icons",
     data: driverPoints,
     pickable: true,
     iconAtlas: carIcon,
     iconMapping: ICON_MAPPING,
-    getIcon: d => 'marker',
+    getIcon: (d) => "marker",
     sizeScale: 5,
-    getPosition: d => d.coordinates,
-    getSize: d => 5,
-    getColor: d => d.color,
-    getAngle: d => -d.angle, // Negative because deck.gl uses counterclockwise rotation
-    ...options
+    getPosition: (d) => d.coordinates,
+    getSize: (d) => 5,
+    getColor: (d) => d.color,
+    ...options,
   });
 }

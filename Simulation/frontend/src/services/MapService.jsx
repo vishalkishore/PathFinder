@@ -16,12 +16,11 @@ import { createGeoJSONCircle } from "../utils/helpers";
  * @param {Number} longitude
  * @returns {Promise<OSMNode>}
  */
-export async function getNearestNode(latitude, longitude) {
+export async function getNearestNode(latitude, longitude,forA="") {
   const circle = createGeoJSONCircle([longitude, latitude], 0.15);
   const boundingBox = getBoundingBoxFromPolygon(circle);
   const response = await fetchOverpassData(boundingBox, false);
   const data = await response.json();
-
   let result;
   for (const node of data.elements) {
     if (node.type !== "node") continue;
@@ -30,8 +29,12 @@ export async function getNearestNode(latitude, longitude) {
       continue;
     }
 
-    const newLength = Math.sqrt(Math.pow(node.lat - latitude, 2) + Math.pow(node.lon - longitude, 2));
-    const resultLength = Math.sqrt(Math.pow(result.lat - latitude, 2) + Math.pow(result.lon - longitude, 2));
+    const newLength = Math.sqrt(
+      Math.pow(node.lat - latitude, 2) + Math.pow(node.lon - longitude, 2),
+    );
+    const resultLength = Math.sqrt(
+      Math.pow(result.lat - latitude, 2) + Math.pow(result.lon - longitude, 2),
+    );
 
     if (newLength < resultLength) {
       result = node;

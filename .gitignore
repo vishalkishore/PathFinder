@@ -50,6 +50,7 @@ _deps
 # Ignore editor and IDE files
 .vscode/
 .idea/
+.vite
 *.swp
 *~
 

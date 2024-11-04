@@ -20,6 +20,7 @@ public:
      * @param boundingBox Vector of two Location objects defining the area
      * @return cpr::Response containing the fetched data
      */
+    
     static cpr::Response fetchOverpassData(const BoundingBox& boundingBox);
 
 private:

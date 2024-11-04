@@ -113,7 +113,7 @@ function getBoundingBoxFromCircle(circleCoords) {
  */
 function selectNodes(nodes, options, centerLat, centerLon) {
   const {
-    distribution = DistributionType.UNIFORM,
+    distribution = DistributionType.DENSITY_BASED,
     count = 1,
     distributionParams = {},
     allowDuplicates = false,
@@ -148,7 +148,7 @@ function selectNodes(nodes, options, centerLat, centerLon) {
   const normalizedWeights = weights.map((w) => w / totalWeight);
 
   // Select nodes
-  const selected = [];
+  let selected = [];
   const availableIndices = new Set(nodes.map((_, i) => i));
 
   while (selected.length < count && availableIndices.size > 0) {
@@ -174,33 +174,79 @@ function selectNodes(nodes, options, centerLat, centerLon) {
     }
   }
 
+  selected = selected.map((driver) => ({
+    ...driver,
+    bearing: Math.random() * 360,
+    targetBearing: Math.random() * 360,
+    speed: 0,
+  }));
+
   return selected;
 }
 
 /**
- * Updates driver positions with movement simulation
+ * Updates driver positions with smooth movement and rotation
  * @param {Array} drivers Current array of drivers
+ * @param {number} deltaTime Time elapsed since last update in milliseconds
  * @returns {Array} Updated array of drivers with new positions
  */
-export function updateDriverPositions(drivers) {
-  return drivers.map(driver => {
-    // Generate small random movement
-    const speedFactor = 0.0001; // Adjust this to control movement speed
-    const bearingChange = (Math.random() - 0.5) * 10; // Random bearing change (-5 to 5 degrees)
-    
-    // Update bearing
-    const newBearing = ((driver.bearing || 0) + bearingChange) % 360;
-    
-    // Calculate new position based on bearing
+export function updateDriverPositions(drivers, deltaTime = 16) {
+  const timeScale = deltaTime / 1000; // Convert to seconds
+
+  return drivers.map((driver) => {
+    // Speed in km/h converted to coordinate units
+    const speedKmH = 30 + Math.random() * 20; // Random speed between 30-50 km/h
+    const speedCoordPerSecond = (speedKmH / 3600) * 0.01; // Approximate conversion
+
+    // Smoother bearing changes
+    const maxTurnRate = 45; // Maximum degrees per second
+    const targetBearing = driver.targetBearing || driver.bearing || 0;
+    const currentBearing = driver.bearing || 0;
+
+    // Calculate new bearing with smooth interpolation
+    let bearingDiff = targetBearing - currentBearing;
+    // Normalize bearing difference to [-180, 180]
+    if (bearingDiff > 180) bearingDiff -= 360;
+    if (bearingDiff < -180) bearingDiff += 360;
+
+    // Limit turn rate
+    const turnAmount =
+      Math.min(Math.abs(bearingDiff), maxTurnRate * timeScale) *
+      Math.sign(bearingDiff);
+
+    const newBearing = (currentBearing + turnAmount) % 360;
+
+    // Update target bearing occasionally
+    if (Math.random() < 0.02) {
+      // 2% chance per frame
+      const newTargetBearing =
+        (targetBearing + (Math.random() - 0.5) * 90) % 360;
+      driver.targetBearing = newTargetBearing;
+    }
+
+    // Calculate new position based on bearing and speed
     const bearingRad = newBearing * (Math.PI / 180);
-    const lonChange = Math.sin(bearingRad) * speedFactor;
-    const latChange = Math.cos(bearingRad) * speedFactor;
-    
+    const distance = speedCoordPerSecond * timeScale;
+    const lonChange = Math.sin(bearingRad) * distance;
+    const latChange = Math.cos(bearingRad) * distance;
+
+    // Add smooth acceleration/deceleration
+    const targetSpeed = speedCoordPerSecond;
+    const currentSpeed = driver.speed || 0;
+    const acceleration = 2; // Units per second^2
+    const newSpeed = lerp(
+      currentSpeed,
+      targetSpeed,
+      Math.min(1, acceleration * timeScale),
+    );
+
     return {
       ...driver,
       lon: driver.lon + lonChange,
       lat: driver.lat + latChange,
-      bearing: newBearing
+      bearing: newBearing,
+      speed: newSpeed,
+      targetBearing: driver.targetBearing,
     };
   });
 }
@@ -215,7 +261,7 @@ export function updateDriverPositions(drivers) {
 export async function spawnDrivers(latitude, longitude, options = {}) {
   try {
     // Create circle coordinates
-    const circleCoords = createGeoJSONCircle([longitude, latitude], 0.15);
+    const circleCoords = createGeoJSONCircle([longitude, latitude], 0.8);
     const boundingBox = getBoundingBoxFromCircle(circleCoords);
 
     // Fetch OSM data
