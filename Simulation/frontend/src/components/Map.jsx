@@ -3,7 +3,6 @@ import { Map as MapGL } from "react-map-gl";
 import maplibregl from "maplibre-gl";
 import { PolygonLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { FlyToInterpolator } from "deck.gl";
-import { TripsLayer } from "@deck.gl/geo-layers";
 import { createGeoJSONCircle } from "../utils/helpers";
 import {
   getBoundingBoxFromPolygon,
@@ -12,6 +11,7 @@ import {
 } from "../services/MapService";
 import { spawnDrivers, DistributionType } from "../services/spawnDrivers";
 import { createDriverLayer } from "./DriverLayer";
+import PathLayer from "./PathLayer";
 import { useEffect, useRef, useState } from "react";
 import Controller from "./Controller";
 import useSmoothStateChange from "../hooks/useSmoothStateChange";
@@ -28,6 +28,11 @@ export default function Map() {
   const [startNode, setStartNode] = useState(null);
   const [endNode, setEndNode] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
+  const [timestamp, setTimestamp] = useState(0);
+  const [pathData, setPathData] = useState([]);
+  const animationFrameId = useRef(null);
+  const startTimeRef = useRef(null);
+  const timestampRef = useRef(0);
   const [selectionRadius, setSelectionRadius] = useState([]);
   const [loading, setLoading] = useState(false);
   const [drivers, setDrivers] = useState([]);
@@ -83,6 +88,7 @@ export default function Map() {
           "end-node": node,
           "bounding-box": boundingBox,
         });
+        console.log(data);
         // Send POST request with bounding box data
         fetch("http://localhost:8080/direct-path", {
           method: "POST",
@@ -92,7 +98,7 @@ export default function Map() {
           body: data,
         })
           .then((response) => response.json())
-          .then((data) => console.log("Success:", data))
+          .then(handlePathResponse)
           .catch((error) => console.error("Error:", error));
       }
 
@@ -114,7 +120,7 @@ export default function Map() {
       return;
     }
 
-    if (node==startNode && drivers.length>0) {
+    if (node == startNode && drivers.length > 0) {
       clearTimeout(loadingHandle);
       setEndNode(null);
       setLoading(false);
@@ -171,10 +177,62 @@ export default function Map() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!pathData || pathData.length === 0) {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+      }
+      return;
+    }
+
+    const loopLength = pathData.length;
+    const animationSpeed = 0.5;
+    startTimeRef.current = performance.now();
+
+    const animate = (currentTime) => {
+      const elapsedTime = (currentTime - startTimeRef.current) * animationSpeed;
+      const loopTime = (elapsedTime / 1000) % loopLength;
+
+      // Update ref instead of state for internal animation timing
+      timestampRef.current = loopTime;
+      // Only update state once per frame for rendering
+      setTimestamp(loopTime);
+
+      animationFrameId.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameId.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+      }
+      startTimeRef.current = null;
+      timestampRef.current = 0;
+    };
+  }, [pathData]);
+
   function clearPath() {
     setEndNode(null);
     setDrivers([]);
+    setPathData([]);
+    timestampRef.current = 0;
   }
+
+  const handlePathResponse = (data) => {
+    if (data.status === "success") {
+      setPathData(data.path || []);
+      // Reset animation timing
+      timestampRef.current = 0;
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+      }
+      startTimeRef.current = null;
+    }
+  };
 
   // Generate layers array including drivers when available
   const layers = [
@@ -189,6 +247,15 @@ export default function Map() {
       getLineWidth: 3,
       opacity: selectionRadiusOpacity,
     }),
+    ...(pathData && pathData.length > 0
+      ? [
+          PathLayer({
+            pathData,
+            colors,
+            timestamp: timestamp,
+          }),
+        ]
+      : []),
     new ScatterplotLayer({
       id: "start-end-points",
       data: [
@@ -241,7 +308,7 @@ export default function Map() {
               },
               getAngle: (d) => {
                 const angle = Number(d.angle) || 0;
-                return (angle);
+                return angle;
               },
               transitions: {
                 getPosition: 120,

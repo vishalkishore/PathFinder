@@ -261,7 +261,7 @@ export function updateDriverPositions(drivers, deltaTime = 16) {
 export async function spawnDrivers(latitude, longitude, options = {}) {
   try {
     // Create circle coordinates
-    const circleCoords = createGeoJSONCircle([longitude, latitude], 0.8);
+    const circleCoords = createGeoJSONCircle([longitude, latitude], 0.7);
     const boundingBox = getBoundingBoxFromCircle(circleCoords);
 
     // Fetch OSM data

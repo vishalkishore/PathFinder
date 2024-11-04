@@ -44,7 +44,6 @@ cpr::Response OverpassDataFetcher::fetchOverpassData(const BoundingBox& bounding
                << ");out skel;";
 
     std::string query = queryStream.str();
-    std::cout << "Overpass Query: " << query << std::endl;
     // Make POST request using CPR library
     cpr::Response response = cpr::Post(
         cpr::Url{"https://overpass-api.de/api/interpreter"},
