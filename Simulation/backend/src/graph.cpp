@@ -21,6 +21,31 @@ double Graph::haversineDistance(double lat1, double lon1, double lat2, double lo
     return R * c;
 }
 
+double Graph::calculateAngle(const std::pair<double, double>& prev, const std::pair<double, double>& curr, const std::pair<double, double>& next,double prevAngle) const {
+
+    double lat2 = curr.first * M_PI / 180;
+    double lon2 = curr.second * M_PI / 180;
+    double lat3 = next.first * M_PI / 180;
+    double lon3 = next.second * M_PI / 180;
+
+    double angle = std::atan2(
+        std::sin(lon3 - lon2) * std::cos(lat3),
+        std::cos(lat2) * std::sin(lat3) - std::sin(lat2) * std::cos(lat3) * std::cos(lon3 - lon2)
+    );
+
+    double bearing = std::fmod((angle * 180 / M_PI + 360), 360);
+
+    // Adjust the angle to be smooth with the previous angle
+    double angleDiff = bearing - prevAngle;
+    if (angleDiff > 180) {
+        bearing -= 360;
+    } else if (angleDiff < -180) {
+        bearing += 360;
+    }
+
+    return bearing;
+}
+
 // A* heuristic function
 double Graph::heuristic(int64_t node, int64_t goal) const {
     try {
@@ -117,9 +142,9 @@ void Graph::loadFromJSON(const json& data) {
     }
 }
 
-std::vector<int64_t> Graph::findPath(int64_t start, int64_t end) {
+std::vector<json> Graph::findPath(const json& start, const json& end) {
     // Validate input nodes
-    if (!nodes.count(start) || !nodes.count(end)) {
+    if (!nodes.count(start["id"]) || !nodes.count(end["id"])) {
         return {};
     }
 
@@ -145,18 +170,19 @@ std::vector<int64_t> Graph::findPath(int64_t start, int64_t end) {
     for (const auto& node : nodes) {
         gScore[node.first] = std::numeric_limits<double>::infinity();
     }
-    gScore[start] = 0;
+    gScore[start["id"]] = 0;
 
     // Initialize priority queue with start node
-    pq.push({heuristic(start, end), start});
+    pq.push({heuristic(start["id"], end["id"]), start["id"]});
 
     // A* algorithm
+    
     while (!pq.empty()) {
         int64_t current = pq.top().second;
         pq.pop();
 
         // Found the destination
-        if (current == end) break;
+        if (current == end["id"]) break;
 
         // Look at all neighbors
         auto it = edges.find(current);
@@ -168,28 +194,49 @@ std::vector<int64_t> Graph::findPath(int64_t start, int64_t end) {
             if (newScore < gScore[next]) {
                 prev[next] = current;
                 gScore[next] = newScore;
-                double priority = newScore + heuristic(next, end);
+                double priority = newScore + heuristic(next, end["id"]);
                 pq.push({priority, next});
             }
         }
     }
 
     // Check if path exists
-    if (gScore[end] == std::numeric_limits<double>::infinity()) {
+    if (gScore[end["id"]] == std::numeric_limits<double>::infinity()) {
         return {};
     }
 
     // Reconstruct path
-    std::vector<int64_t> path;
+    std::vector<json> path;
     path.reserve(nodes.size() / 4);  // Reasonable initial capacity
     
-    for (int64_t at = end; at != start; ) {
+    double prevAngle = 0.0;
+    for (int64_t at = end["id"]; at != start["id"]; ) {
         auto it = prev.find(at);
-        if (it == prev.end()) return {};  // No path exists
-        path.push_back(at);
+        if (it == prev.end()) return {}; 
+        
+        int64_t prevNode = it->second;
+        double distance = distanceCache[{prevNode, at}];
+        double angle = calculateAngle(nodes[prevNode], nodes[at], nodes[it->second], prevAngle);
+        
+        path.push_back(json{
+            {"id", at},
+            {"lat", nodes.at(at).first},
+            {"lon", nodes.at(at).second},
+            {"type", "node"},
+            {"distance", distance},
+            {"angle", angle}
+        });
+        prevAngle = angle;
         at = it->second;
     }
-    path.push_back(start);
+    path.push_back(json{
+        {"id", start["id"]},
+        {"lat", nodes.at(start["id"]).first},
+        {"lon", nodes.at(start["id"]).second},
+        {"type", "node"},
+        {"distance", 0.0},
+        {"angle", 0.0}
+    });
     
     std::reverse(path.begin(), path.end());
     return path;

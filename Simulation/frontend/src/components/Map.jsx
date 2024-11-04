@@ -114,10 +114,16 @@ export default function Map() {
       return;
     }
 
-    setDrivers([]);
+    if (node==startNode && drivers.length>0) {
+      clearTimeout(loadingHandle);
+      setEndNode(null);
+      setLoading(false);
+      return;
+    }
+
     const newDrivers = await spawnDrivers(node.lat, node.lon, { count: 8 });
     console.log("Drivers spawned:", newDrivers);
-    setDrivers((prev) => [...prev, ...newDrivers]);
+    setDrivers((prev) => [...newDrivers]);
 
     setStartNode(node);
     setEndNode(null);
@@ -235,7 +241,7 @@ export default function Map() {
               },
               getAngle: (d) => {
                 const angle = Number(d.angle) || 0;
-                return -1 * (angle + 90);
+                return (angle);
               },
               transitions: {
                 getPosition: 120,

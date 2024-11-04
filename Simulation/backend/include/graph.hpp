@@ -34,6 +34,7 @@ private:
 
     // Private helper methods
     double haversineDistance(double lat1, double lon1, double lat2, double lon2) const;
+    double calculateAngle(const std::pair<double, double>& prev, const std::pair<double, double>& curr, const std::pair<double, double>& next, double prevAngle) const;
     double heuristic(int64_t node, int64_t goal) const;
 
 public:
@@ -51,7 +52,7 @@ public:
 
     // Main interface methods
     void loadFromJSON(const json& data);
-    std::vector<int64_t> findPath(int64_t start, int64_t end);
+    std::vector<json> findPath(const json& start, const json& end);
     json getPathState() const;
 
     // Utility methods

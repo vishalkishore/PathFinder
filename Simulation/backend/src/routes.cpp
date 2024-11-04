@@ -82,16 +82,6 @@ void setupRoutes(crow::App<crow::CORSHandler>& app, Graph& graph) {
                 graph.loadFromJSON(osmData);
                 std::cout << "Graph data loaded successfully" << std::endl;
 
-                std::cout << "Finding path from node 1 to 3..." << std::endl;
-                std::vector<int64_t> path = graph.findPath(5733620743, 5733620739);
-
-                // Print results
-                std::cout << "Path found: " << std::endl;
-                for (size_t i = 0; i < path.size(); i++) {
-                    std::cout << path[i];
-                    if (i < path.size() - 1) std::cout << " -> ";
-                }
-                std::cout << "\n";
 
                 // Get graph state (could be sent to client)
                 json state = graph.getPathState();
@@ -108,8 +98,8 @@ void setupRoutes(crow::App<crow::CORSHandler>& app, Graph& graph) {
                         {"max_lon", bbox.max_lon}
                     }},
                     // {"data", osmData},
-                    {"path", path},
-                    // {"state", state}
+                    // {"path", path},
+                    {"state", state}
                 };
 
                 return crow::response(200, response.dump());
@@ -187,7 +177,7 @@ void setupRoutes(crow::App<crow::CORSHandler>& app, Graph& graph) {
                 std::cout << "Loading graph data..." << std::endl;
                 graph.loadFromJSON(osmData);
                 graph.verifyGraph();
-                std::vector<int64_t> path = graph.findPath(startNode["id"], endNode["id"]);
+                std::vector<json> path = graph.findPath(startNode, endNode);
 
                 // Return success response without pathfinding for now
                 json response = {
