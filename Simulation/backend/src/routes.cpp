@@ -126,8 +126,12 @@ void setupRoutes(crow::App<crow::CORSHandler>& app, Graph& graph) {
             std::cout << "Received request body: " << body.dump(2) << std::endl;
             json startNode = body["start-node"];
             json endNode = body["end-node"];
-            auto boundingBoxReq = body["bounding-box"];
+            BoundingBox bbox;
+            if (body.contains("bounding-box")){
+            
 
+            auto boundingBoxReq = body["bounding-box"];
+            
             // Validate request body is an array with exactly 2 elements
             if (!boundingBoxReq.is_array() || boundingBoxReq.size() != 2) {
                 return crow::response(400, "Request body must be an array with exactly 2 coordinate objects");
@@ -151,13 +155,17 @@ void setupRoutes(crow::App<crow::CORSHandler>& app, Graph& graph) {
             }
 
             // Create bounding box
-            BoundingBox bbox {
+            BoundingBox bbox_ {
                 std::min(boundingBoxReq[0]["latitude"].get<double>(), boundingBoxReq[1]["latitude"].get<double>()),
                 std::min(boundingBoxReq[0]["longitude"].get<double>(), boundingBoxReq[1]["longitude"].get<double>()),
                 std::max(boundingBoxReq[0]["latitude"].get<double>(), boundingBoxReq[1]["latitude"].get<double>()),
                 std::max(boundingBoxReq[0]["longitude"].get<double>(), boundingBoxReq[1]["longitude"].get<double>())
             };
-
+            bbox = bbox_;
+            }else{
+                BoundingBoxGenerator generator(startNode, endNode);
+                BoundingBox bbox = generator.getBoundingBox();
+            }
             // Fetch OSM data
             std::cout << "Fetching OSM data..." << "\n";
             cpr::Response ans = OverpassDataFetcher::fetchOverpassData(bbox);
