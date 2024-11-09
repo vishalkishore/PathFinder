@@ -1,11 +1,12 @@
-# Dockerfile
 FROM gcc:14-bookworm AS builder
 
-RUN apt-get update -y
-RUN apt-get upgrade -y
-RUN apt-get install --reinstall ca-certificates -y
+# Install certificates and update package lists in a single layer
+RUN apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get install --reinstall ca-certificates -y && \
+    update-ca-certificates
 
-# Install dependencies
+# Install dependencies in a single layer to reduce image size
 RUN apt-get update && apt-get install -y \
     cmake \
     git \
@@ -15,11 +16,21 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     zlib1g-dev \
     libcurl4-openssl-dev \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Crow
+# Set git configurations to improve clone reliability
+RUN git config --global http.postBuffer 524288000 && \
+    git config --global http.lowSpeedLimit 0 && \
+    git config --global http.lowSpeedTime 999999
+
 WORKDIR /deps
-RUN git clone https://github.com/CrowCpp/Crow.git && \
+
+# Install Crow with retry mechanism
+RUN for i in 1 2 3; do \
+        git clone --depth 1 https://github.com/CrowCpp/Crow.git && break || \
+        rm -rf Crow && sleep 5; \
+    done && \
     cd Crow && \
     mkdir build && \
     cd build && \
@@ -30,8 +41,11 @@ RUN git clone https://github.com/CrowCpp/Crow.git && \
     make -j$(nproc) && \
     make install
 
-# Install CPR with tests and examples disabled
-RUN git clone https://github.com/libcpr/cpr.git && \
+# Install CPR with retry mechanism
+RUN for i in 1 2 3; do \
+        git clone --depth 1 https://github.com/libcpr/cpr.git && break || \
+        rm -rf cpr && sleep 5; \
+    done && \
     cd cpr && \
     mkdir build && \
     cd build && \
@@ -46,9 +60,12 @@ RUN git clone https://github.com/libcpr/cpr.git && \
     make install && \
     ln -s /usr/lib/cmake/cpr /usr/share/cmake/cpr
 
-# Download latest json.hpp if not present in include folder
+# Download json.hpp with retry mechanism
 RUN mkdir -p /tmp/json && \
-    wget https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -O /tmp/json/json.hpp
+    for i in 1 2 3; do \
+        wget https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -O /tmp/json/json.hpp && break || \
+        rm -f /tmp/json/json.hpp && sleep 5; \
+    done
 
 # Set up build directory
 WORKDIR /app
@@ -68,10 +85,10 @@ RUN mkdir -p build && \
     make && \
     make install
 
-# Create minimal runtime image
+# Runtime stage
 FROM ubuntu:latest
 
-# Install runtime dependencies
+# Install runtime dependencies in a single layer
 RUN apt-get update && apt-get install -y \
     libboost-regex1.74.0 \
     libssl3 \

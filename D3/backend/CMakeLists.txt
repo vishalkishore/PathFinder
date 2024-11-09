@@ -4,16 +4,11 @@ project(PistacheApp CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include(FetchContent)
-FetchContent_Declare(
-    json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.10.5  # You can specify the version you need
-)
-FetchContent_MakeAvailable(json)
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(Pistache REQUIRED IMPORTED_TARGET libpistache)
+
+# Find nlohmann_json
+find_package(nlohmann_json REQUIRED)
 
 # Automatically include all .cpp files in the src directory
 file(GLOB SOURCES "src/*.cpp")
