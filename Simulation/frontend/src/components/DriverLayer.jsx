@@ -13,7 +13,7 @@ const ICON_MAPPING = {
  * @param {Object} params.options Additional layer options
  * @returns {IconLayer} deck.gl IconLayer
  */
-export function createDriverLayer({ drivers = [], colors = {}, options = {} }) {
+export default function createDriverLayer({ drivers = [], colors = {}, options = {} }) {
   // Transform driver data to match icon format
   const driverPoints = drivers.map((driver) => ({
     coordinates: [driver.lon, driver.lat],

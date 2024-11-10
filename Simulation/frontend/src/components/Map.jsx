@@ -11,9 +11,9 @@ import {
   getNearestNode,
 } from "../services/MapService";
 import { spawnDrivers } from "../services/spawnDrivers";
-import { createDriverLayer } from "./DriverLayer";
-import PathLayer from "./PathLayer";
+import createDriverLayer from "./DriverLayer";
 import Controller from "./Controller";
+import PathLayer from "./PathLayer";
 import useSmoothStateChange from "../hooks/useSmoothStateChange";
 import {
   INITIAL_COLORS,
@@ -23,11 +23,10 @@ import {
 } from "../config";
 
 // Custom hooks
-const useMapAnimation = (pathData) => {
+const useMapAnimation = (pathData, speed = 0.5) => {
   const [timestamp, setTimestamp] = useState(0);
   const animationFrameId = useRef(null);
   const startTimeRef = useRef(null);
-  const timestampRef = useRef(0);
 
   useEffect(() => {
     if (!pathData?.length) {
@@ -38,16 +37,14 @@ const useMapAnimation = (pathData) => {
       return;
     }
 
-    const loopLength = pathData.length;
-    const animationSpeed = 0.5;
-    startTimeRef.current = performance.now();
-
     const animate = (currentTime) => {
-      const elapsedTime = (currentTime - startTimeRef.current) * animationSpeed;
-      const loopTime = (elapsedTime / 1000) % loopLength;
-
-      timestampRef.current = loopTime;
-      setTimestamp(loopTime);
+      if (!startTimeRef.current) startTimeRef.current = currentTime;
+      const elapsedTime = currentTime - startTimeRef.current;
+      
+      // Calculate timestamp based on elapsed time and speed
+      const newTimestamp = (elapsedTime * speed) / 1000;
+      setTimestamp(newTimestamp);
+      
       animationFrameId.current = requestAnimationFrame(animate);
     };
 
@@ -56,12 +53,10 @@ const useMapAnimation = (pathData) => {
     return () => {
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
-        animationFrameId.current = null;
       }
       startTimeRef.current = null;
-      timestampRef.current = 0;
     };
-  }, [pathData]);
+  }, [pathData, speed]);
 
   return timestamp;
 };
@@ -101,13 +96,21 @@ export default function Map() {
   const [hoveredDriver, setHoveredDriver] = useState(null);
   const [colors] = useState(INITIAL_COLORS);
   const [boundingBox, setBoundingBox] = useState(null);
+  const [started, setStarted] = useState(false);
+  const [animationEnded, setAnimationEnded] = useState(false);
+  const [playbackOn, setPlaybackOn] = useState(false);
+  const [settings, setSettings] = useState({
+    algorithm: "astar",
+    radius: INITIAL_RADIUS,
+    speed: 5,
+  });
 
   // Refs
   const fadeRadius = useRef();
-  const ui = useRef();
+  const timer = useRef(0);
 
   // Custom hooks
-  const timestamp = useMapAnimation(pathData);
+  const timestamp = useMapAnimation(pathData, settings.speed);
   const selectionRadiusOpacity = useSmoothStateChange(
     0,
     0,
@@ -134,29 +137,25 @@ export default function Map() {
 
   useGeolocation(changeLocation);
 
-  const handlePathResponse = useCallback((data) => {
-    if (data.status === "success") {
-      setPathData(data.path || []);
-    }
-  }, []);
-
   const clearPath = useCallback(() => {
+    setStarted(false);
     setEndNode(null);
     setDrivers([]);
     setPathData([]);
+    timer.current = 0;
+    setAnimationEnded(false);
   }, []);
 
-  const handleDriverClick = useCallback((info) => {
-    if (info.object) {
-      console.log("Selected driver:", info.object);
+  const handlePathResponse = useCallback(async (data) => {
+    if (data.status === "success" && data.path) {
+      setPathData(data.path);
+      setStarted(true);
     }
   }, []);
 
-  const handleDriverHover = useCallback((info) => {
-    setHoveredDriver(info.object || null);
-  }, []);
-
   const mapClick = useCallback(async (e, info, radius = null) => {
+    // if (started && !animationEnded) return;
+
     setFadeRadiusReverse(false);
     clearPath();
     fadeRadius.current = true;
@@ -196,7 +195,7 @@ export default function Map() {
           });
           
           const responseData = await response.json();
-          handlePathResponse(responseData);
+          await handlePathResponse(responseData);
         }
       } catch (error) {
         console.error("Error:", error);
@@ -227,7 +226,7 @@ export default function Map() {
 
       const circle = createGeoJSONCircle(
         [node.lon, node.lat],
-        radius || INITIAL_RADIUS
+        radius || settings.radius
       );
       setSelectionRadius([{ contour: circle }]);
       setBoundingBox(getBoundingBoxFromPolygon(circle));
@@ -238,7 +237,7 @@ export default function Map() {
       clearTimeout(loadingHandle);
       setLoading(false);
     }
-  }, [loading, boundingBox, startNode, drivers.length, clearPath, handlePathResponse]);
+  }, [loading, boundingBox, startNode, drivers.length, clearPath, handlePathResponse, settings.radius, started, animationEnded]);
 
   // Layer generation
   const layers = [
@@ -253,7 +252,7 @@ export default function Map() {
       getLineWidth: 3,
       opacity: selectionRadiusOpacity,
     }),
-    ...(pathData?.length > 0 ? [PathLayer({ pathData, colors, timestamp })] : []),
+    PathLayer({ pathData, colors, timestamp }),
     new ScatterplotLayer({
       id: "start-end-points",
       data: [
@@ -281,21 +280,6 @@ export default function Map() {
       getFillColor: (d) => d.color,
       getLineColor: (d) => d.lineColor,
     }),
-    ...(drivers.length > 0 ? [
-      createDriverLayer({
-        drivers,
-        colors,
-        options: {
-          onClick: handleDriverClick,
-          onHover: handleDriverHover,
-          getAngle: (d) => Number(d.angle) || 0,
-          transitions: {
-            getPosition: 120,
-            getAngle: 120,
-          },
-        },
-      }),
-    ] : []),
   ];
 
   return (
@@ -337,7 +321,13 @@ export default function Map() {
           </div>
         )}
       </div>
-      <Controller />
+      <Controller
+        started={started}
+        animationEnded={animationEnded}
+        playbackOn={playbackOn}
+        settings={settings}
+        setSettings={setSettings}
+      />
     </>
   );
 }
