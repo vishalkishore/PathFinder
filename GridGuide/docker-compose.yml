@@ -1,0 +1,46 @@
+# version: '3.8'
+# services:
+#   app:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     volumes:
+#       - ./backend:/app
+#       - build_volume:/app/build
+#     ports:
+#       - "9080:9080"
+#     command: sh -c "mkdir -p /app/build && cd /app/build && cmake .. && make && ./server"
+
+# volumes:
+#   build_volume:
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+      - backend_build:/app/build
+    ports:
+      - "9080:9080"
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
+volumes:
+  backend_build:
+
+networks:
+  app-network:
+    driver: bridge

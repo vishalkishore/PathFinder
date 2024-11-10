@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - backend_build:/app/build
+    environment:
+      - PORT=8080
+      - CROW_LOG_LEVEL=DEBUG
+      - GLOG_logtostderr=1
+    deploy:
+      resources:
+        limits:
+          memory: 3G  # Maximum memory the container can use
+          cpus: '4'   # Maximum number of CPU cores
+        reservations:
+          memory: 1G
+          cpus: '2'
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    command: npm run dev
+    depends_on:
+      - backend
+
+volumes:
+  backend_build:
